@@ -1,0 +1,67 @@
+const config = require('../config');
+const { cmd } = require('../command');
+const axios = require('axios');
+
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyA29Biw_t0PqXYWYdJZe6tzKpkXN4qVNBs`;
+
+cmd({
+  on: "body"
+}, async (
+  conn,
+  mek,
+  m,
+  {
+    from,
+    quoted,
+    body,
+    isCmd,
+    sender,
+    senderNumber,
+    botNumber,
+    pushname,
+    reply
+  }
+) => {
+  try {
+    // Don't respond to commands or self messages
+    if (isCmd) return;
+    if (senderNumber === botNumber) return;
+    if (config.AUTO_AI !== 'on') return;
+
+    // Smart Sinhala Human Prompt
+    const prompt = `
+ඔබ සැබෑ මිනිසෙකු වගේ හැසිරෙන්න. මෙවලාවන් අනුගමනය කරන්න:
+
+✅ අකුරු 100ට අඩු reply දෙන්න  
+✅ ඉමෝජී එකතු කරන්න  
+✅ "ආයුබෝවන්", "ඔබට කෙසේද?" වගේ වචන *නොයවන්න*  
+✅ උදව් ඕනේද කියලා අහන්න එපා  
+✅ උනන්දුවෙන්, funny වගේම smart විදිහට reply දෙන්න  
+✅ බැන්නොත්: "හුත්තා", "කැරියා", "පකයා", "පොන්නයා", "අවජාතකයා", "සක්කිලියා" වචන භාවිතා කරන්න  
+✅ නම: CHMA MD  
+✅ හැදුවෙ: චමිදු රන්සික අයියා  
+✅ භාෂාව message එකට match වෙන්න
+
+User Message: ${body}
+`;
+
+    const payload = {
+      contents: [{
+        parts: [{ text: prompt }]
+      }]
+    };
+
+    const response = await axios.post(GEMINI_API_URL, payload, {
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const aiReply = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!aiReply) return;
+
+    return reply(aiReply);
+
+  } catch (e) {
+    console.error("AUTO-AI ERROR:", e);
+    return reply("😢 Error එකක් උනා බන්. ටිකක් පස්සෙ උත්සහ කරන්නකෝ.");
+  }
+});
